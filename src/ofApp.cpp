@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 using namespace std;
+
 // 초기 설정 함수
 void ofApp::setup() {
     ofSetFrameRate(60); // 프레임 레이트 설정
@@ -64,6 +65,11 @@ void ofApp::drawGame() {
             }
         }
     }
+    // 상자가 그려지고 있으면 상자 그리기
+    if (drawingBox) {
+        ofSetColor(0, 0, 255, 100); // 상자 색상 설정
+        ofDrawRectangle(startPoint.x, startPoint.y, endPoint.x - startPoint.x, endPoint.y - startPoint.y); // 상자 그리기
+    }
     // 점수와 타이머를 화면에 그리기
     ofSetColor(0);
     ofDrawBitmapString("Score: " + ofToString(score), 10, gridSize * cellSize + 20); // 점수 그리기
@@ -118,6 +124,9 @@ void ofApp::keyPressed(int key) {
     } else if (mode == 3 && key == '0') {
         mode = 0; // 랭킹 화면에서 메인 화면으로 돌아가기
     }
+    //else if (key == '0') {
+      //  mode = 0;
+    //}
 }
 
 // 게임 설정 함수
