@@ -1,5 +1,7 @@
 #include "ofApp.h"
-
+#include <fstream>
+#include <sstream>
+using namespace std;
 // 초기 설정 함수
 void ofApp::setup() {
     ofSetFrameRate(60); // 프레임 레이트 설정
@@ -8,15 +10,22 @@ void ofApp::setup() {
     timer = timeLimit; // 타이머 초기 설정
     drawingBox = false; // 상자 그리기 상태 초기화
     mode = 0; // 기본 모드 설정 (0은 모드 선택 화면을 의미)
+    gameOver = false; // 게임 오버 상태 초기화
+    rankingList = nullptr; // 랭킹 리스트 초기화
+    playerName = ""; // 플레이어 이름 초기화
+    enteringName = false; // 이름 입력 상태 초기화
+
+    loadRanking(); // 랭킹 정보 불러오기
 }
 
 // 매 프레임마다 호출되는 업데이트 함수
 void ofApp::update() {
-    if (mode != 0 && timer > 0) { // 타이머가 0보다 크고 모드가 선택된 경우
+    if (mode > 0 && timer > 0) { // 타이머가 0보다 크고 모드가 선택된 경우
         timer -= ofGetLastFrameTime(); // 지난 프레임의 시간을 타이머에서 빼기
-    }
-    else if (timer <= 0) {
+    } else if (timer <= 0 && !gameOver) {
         timer = 0; // 타이머를 0으로 설정
+        gameOver = true; // 게임 오버 상태 설정
+        enteringName = true; // 이름 입력 상태 설정
     }
 }
 
@@ -24,8 +33,11 @@ void ofApp::update() {
 void ofApp::draw() {
     if (mode == 0) {
         drawModeSelection(); // 모드 선택 화면 그리기
-    }
-    else {
+    } else if (mode == 3) {
+        drawRanking(); // 랭킹 화면 그리기
+    } else if (gameOver) {
+        drawGameOver(); // 게임 오버 화면 그리기
+    } else {
         drawGame(); // 게임 화면 그리기
     }
 }
@@ -33,7 +45,7 @@ void ofApp::draw() {
 // 모드 선택 화면 그리기 함수
 void ofApp::drawModeSelection() {
     ofSetColor(0);
-    std::string selectModeMsg = "Select Game Mode\n1. Mode 1: Pairs summing to 10\n2. Mode 2: Even random distribution";
+    string selectModeMsg = "Select Game Mode\n1. Mode 1: Pairs summing to 10\n2. Mode 2: Even random distribution\n3. View Rankings";
     ofDrawBitmapStringHighlight(selectModeMsg, ofGetWidth() / 2 - 150, ofGetHeight() / 2, ofColor::white, ofColor::black);
 }
 
@@ -56,18 +68,26 @@ void ofApp::drawGame() {
     ofSetColor(0);
     ofDrawBitmapString("Score: " + ofToString(score), 10, gridSize * cellSize + 20); // 점수 그리기
     ofDrawBitmapString("Time: " + ofToString(timer, 2), 10, gridSize * cellSize + 40); // 타이머 그리기
+}
 
-    // 타이머가 0이 되면 게임 오버 메시지 그리기
-    if (timer == 0) {
-        std::string gameOverMsg = "Game Over\nScore: " + ofToString(score); // 게임 오버 메시지 생성
-        ofDrawBitmapStringHighlight(gameOverMsg, ofGetWidth() / 2 - 50, ofGetHeight() / 2, ofColor::white, ofColor::black); // 게임 오버 메시지 그리기
-    }
+// 게임 오버 화면 그리기 함수
+void ofApp::drawGameOver() {
+    ofSetColor(0);
+    string gameOverMsg = "Game Over\nScore: " + ofToString(score) + "\nEnter your name: " + playerName;
+    ofDrawBitmapStringHighlight(gameOverMsg, ofGetWidth() / 2 - 150, ofGetHeight() / 2, ofColor::white, ofColor::black);
+}
 
-    // 상자가 그려지고 있으면 상자 그리기
-    if (drawingBox) {
-        ofSetColor(0, 0, 255, 100); // 상자 색상 설정
-        ofDrawRectangle(startPoint.x, startPoint.y, endPoint.x - startPoint.x, endPoint.y - startPoint.y); // 상자 그리기
+// 랭킹 화면 그리기 함수
+void ofApp::drawRanking() {
+    ofSetColor(0);
+    string rankingMsg = "Ranking:\n";
+    User* current = rankingList;
+    int rank = 1;
+    while (current != nullptr) {
+        rankingMsg += ofToString(rank++) + ". " + current->name + " " + ofToString(current->score) + "\n";
+        current = current->next;
     }
+    ofDrawBitmapStringHighlight(rankingMsg, ofGetWidth() / 2 - 150, ofGetHeight() / 2, ofColor::white, ofColor::black);
 }
 
 // 키를 눌렀을 때 호출되는 함수
@@ -76,11 +96,27 @@ void ofApp::keyPressed(int key) {
         if (key == '1') {
             mode = 1; // 모드 1 선택
             setupGame(); // 게임 설정
-        }
-        else if (key == '2') {
+        } else if (key == '2') {
             mode = 2; // 모드 2 선택
             setupGame(); // 게임 설정
+        } else if (key == '3') {
+            mode = 3; // 랭킹 화면 선택
         }
+    } else if (enteringName) {
+        if (key == OF_KEY_RETURN) { // Enter 키를 누르면
+            enteringName = false; // 이름 입력 종료
+            addRanking(playerName, score); // 랭킹 추가
+            saveRanking(); // 랭킹 저장
+            mode = 0; // 메인 화면으로 돌아가기
+        } else if (key == OF_KEY_BACKSPACE) { // Backspace 키를 누르면
+            if (!playerName.empty()) {
+                playerName.pop_back(); // 이름 한 글자 삭제
+            }
+        } else {
+            playerName += key; // 이름에 글자 추가
+        }
+    } else if (mode == 3 && key == '0') {
+        mode = 0; // 랭킹 화면에서 메인 화면으로 돌아가기
     }
 }
 
@@ -89,6 +125,7 @@ void ofApp::setupGame() {
     score = 0; // 점수 초기화
     timer = timeLimit; // 타이머 초기화
     drawingBox = false; // 상자 그리기 상태 초기화
+    gameOver = false; // 게임 오버 상태 초기화
     fillGrid(); // 그리드 채우기
 }
 
@@ -115,7 +152,7 @@ void ofApp::mouseReleased(int x, int y, int button) {
     drawingBox = false; // 상자 그리기 상태 해제
 
     int sum = 0; // 선택된 숫자의 합계
-    std::vector<std::pair<int, int>> cellsToClear; // 지울 셀 목록
+    vector<pair<int, int>> cellsToClear; // 지울 셀 목록
 
     // 그리드의 모든 셀을 검사하여 상자와 겹치는 셀 찾기
     for (int i = 0; i < gridSize; i++) {
@@ -148,24 +185,24 @@ bool ofApp::isValidPair(int x1, int y1, int x2, int y2) {
 
 // 상자들이 겹치는지 확인하는 함수
 bool ofApp::isOverlapping(int x, int y, int w, int h, int x1, int y1, int x2, int y2) {
-    int minX = std::min(x1, x2); // 상자의 최소 x 좌표
-    int maxX = std::max(x1, x2); // 상자의 최대 x 좌표
-    int minY = std::min(y1, y2); // 상자의 최소 y 좌표
-    int maxY = std::max(y1, y2); // 상자의 최대 y 좌표
+    int minX = min(x1, x2); // 상자의 최소 x 좌표
+    int maxX = max(x1, x2); // 상자의 최대 x 좌표
+    int minY = min(y1, y2); // 상자의 최소 y 좌표
+    int maxY = max(y1, y2); // 상자의 최대 y 좌표
 
     return (x < maxX && x + w > minX && y < maxY && y + h > minY); // 상자가 겹치는지 여부 반환
 }
 
 // 유효한 숫자 쌍을 반환하는 함수
-std::vector<std::pair<int, int>> ofApp::getValidPairs() {
+vector<pair<int, int>> ofApp::getValidPairs() {
     return { {1, 9}, {2, 8}, {3, 7}, {4, 6}, {5, 5} }; // 유효한 숫자 쌍
 }
 
 // 그리드를 채우는 함수
 void ofApp::fillGrid() {
-    std::vector<std::pair<int, int>> pairs = getValidPairs(); // 유효한 숫자 쌍 가져오기
-    std::random_device rd; // 랜덤 장치 생성
-    std::mt19937 g(rd()); // 난수 생성기 초기화
+    vector<pair<int, int>> pairs = getValidPairs(); // 유효한 숫자 쌍 가져오기
+    random_device rd; // 랜덤 장치 생성
+    mt19937 g(rd()); // 난수 생성기 초기화
 
     // 그리드를 초기화
     for (int i = 0; i < gridSize; i++) {
@@ -181,12 +218,12 @@ void ofApp::fillGrid() {
             for (int j = 0; j < gridSize; j++) {
                 if (grid[i][j] == -1) { // 그리드 셀이 비어있으면
                     // 랜덤 숫자 쌍 선택
-                    std::pair<int, int> pair = pairs[std::uniform_int_distribution<int>(0, pairs.size() - 1)(g)];
+                    pair<int, int> pair = pairs[uniform_int_distribution<int>(0, pairs.size() - 1)(g)];
                     grid[i][j] = pair.first; // 첫 번째 숫자 배치
 
                     // 인접한 방향들 정의
-                    std::vector<std::pair<int, int>> directions = { {1, 0}, {0, 1}, {-1, 0}, {0, -1} };
-                    std::shuffle(directions.begin(), directions.end(), g); // 방향을 랜덤으로 섞기
+                    vector<std::pair<int, int>> directions = { {1, 0}, {0, 1}, {-1, 0}, {0, -1} };
+                    shuffle(directions.begin(), directions.end(), g); // 방향을 랜덤으로 섞기
 
                     bool placed = false; // 숫자가 배치되었는지 여부
                     // 숫자 배치 시도
@@ -218,10 +255,9 @@ void ofApp::fillGrid() {
                 }
             }
         }
-    }
-    else if (mode == 2) {
+    } else if (mode == 2) {
         // 모드 2: 숫자들을 균등하게 랜덤하게 분포시키기
-        std::vector<int> numbers;
+        vector<int> numbers;
         int totalCells = gridSize * gridSize;
         int repeatCount = totalCells / 9; // 각 숫자가 반복되는 횟수
         for (int n = 1; n <= 9; ++n) {
@@ -235,7 +271,7 @@ void ofApp::fillGrid() {
             numbers.push_back(1 + (i % 9)); // 1부터 9까지 반복하여 추가
         }
 
-        std::shuffle(numbers.begin(), numbers.end(), g);
+        shuffle(numbers.begin(), numbers.end(), g);
 
         int index = 0;
         for (int i = 0; i < gridSize; i++) {
@@ -244,4 +280,60 @@ void ofApp::fillGrid() {
             }
         }
     }
+}
+
+// 랭킹 정보를 파일에서 불러오는 함수
+void ofApp::loadRanking() {
+    ifstream file("rank.txt");
+    if (!file.is_open()) return;
+
+    std::string line;
+    while (getline(file, line)) {
+        istringstream ss(line);
+        string name;
+        int score;
+        ss >> name >> score;
+        addRanking(name, score);
+    }
+    file.close();
+}
+
+// 랭킹 정보를 파일에 저장하는 함수
+void ofApp::saveRanking() {
+    ofstream file("rank.txt");
+    User* current = rankingList;
+    while (current != nullptr) {
+        file << current->name << " " << current->score << std::endl;
+        current = current->next;
+    }
+    file.close();
+}
+
+// 랭킹 리스트에 사용자 추가 함수
+void ofApp::addRanking(string name, int score) {
+    User* newUser = new User(name, score);
+    if (rankingList == nullptr || rankingList->score < score) {
+        newUser->next = rankingList;
+        rankingList = newUser;
+    } else {
+        User* current = rankingList;
+        while (current->next != nullptr && current->next->score >= score) {
+            current = current->next;
+        }
+        newUser->next = current->next;
+        current->next = newUser;
+    }
+}
+
+// 랭킹 정보를 화면에 표시하는 함수
+void ofApp::displayRanking() {
+    ofSetColor(0);
+    string rankingMsg = "Ranking:\n";
+    User* current = rankingList;
+    int rank = 1;
+    while (current != nullptr) {
+        rankingMsg += ofToString(rank++) + ". " + current->name + " " + ofToString(current->score) + "\n";
+        current = current->next;
+    }
+    ofDrawBitmapStringHighlight(rankingMsg, 10, gridSize * cellSize + 60, ofColor::white, ofColor::black);
 }

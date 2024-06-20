@@ -4,6 +4,14 @@
 #include <vector>
 #include <algorithm>
 #include <random>
+// 사용자 정보 구조체
+struct User {
+    std::string name;
+    int score;
+    User* next;
+
+    User(std::string n, int s) : name(n), score(s), next(nullptr) {}
+};
 
 class ofApp : public ofBaseApp {
 public:
@@ -14,6 +22,7 @@ public:
     void mousePressed(int x, int y, int button); // 마우스 버튼을 눌렀을 때 호출되는 함수
     void mouseDragged(int x, int y, int button); // 마우스를 드래그할 때 호출되는 함수
     void mouseReleased(int x, int y, int button); // 마우스 버튼을 뗄 때 호출되는 함수
+private:
     void checkPairs(); // 숫자 쌍을 확인하는 함수
     void fillGrid(); // 그리드를 채우는 함수
     bool isValidPair(int x1, int y1, int x2, int y2); // 유효한 쌍인지 확인하는 함수
@@ -21,6 +30,13 @@ public:
     void drawModeSelection();
     void drawGame();
     void setupGame();
+    void drawGameOver();
+    void loadRanking();
+    void saveRanking();
+    void drawRanking();
+    void addRanking(std::string name, int score);
+    void displayRanking();
+
     const int gridSize = 10; // 그리드의 크기
     const int cellSize = 40; // 각 셀의 크기
     const int maxNumber = 9; // 셀에 들어가는 최대 숫자
@@ -29,8 +45,11 @@ public:
     float timer; // 남은 시간
     const float timeLimit = 30.0f; // 제한 시간
     int mode;//게임 모드
+    bool gameOver; // 게임 오버 상태
     bool drawingBox; // 상자가 그려지고 있는지 여부
     ofPoint startPoint, endPoint; // 상자의 시작점과 끝점
-
+    User* rankingList; // 랭킹 리스트
+    std::string playerName; // 현재 플레이어 이름 입력
+    bool enteringName; // 이름 입력 상태
     std::vector<std::pair<int, int>> getValidPairs(); // 유효한 숫자 쌍을 반환하는 함수
 };
