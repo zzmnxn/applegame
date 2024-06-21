@@ -57,7 +57,7 @@ void ofApp::drawGame() {
         for (int j = 0; j < gridSize; j++) {
             int x = i * cellSize; // 셀의 x 좌표
             int y = j * cellSize; // 셀의 y 좌표
-            ofSetColor(200); // 셀 색상 설정
+            ofSetColor(255,204,204); // 셀 색상 설정
             ofDrawRectangle(x, y, cellSize, cellSize); // 셀 그리기
             if (grid[i][j] != -1) { // 셀이 비어있지 않으면
                 ofSetColor(0); // 텍스트 색상 설정
@@ -179,8 +179,9 @@ void ofApp::mouseReleased(int x, int y, int button) {
     if (sum == 10) {
         for (auto& cell : cellsToClear) {
             grid[cell.first][cell.second] = -1; // 셀 비우기
+            score = score + 10;//점수 증가
         }
-        score++; // 점수 증가
+        
     }
 }
 
