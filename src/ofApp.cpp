@@ -28,6 +28,9 @@ void ofApp::update() {
         gameOver = true; // 게임 오버 상태 설정
         enteringName = true; // 이름 입력 상태 설정
     }
+    if (shouldExit) { //프로그램 종료 조건이 만족되면
+        ofExit(); //프로그램을 종료한다.
+    }
 }
 
 // 화면에 그리기 함수
@@ -46,8 +49,8 @@ void ofApp::draw() {
 // 모드 선택 화면 그리기 함수
 void ofApp::drawModeSelection() {
     ofSetColor(0);
-    string selectModeMsg = "Select Game Mode\n1. Mode 1: Pairs summing to 10\n2. Mode 2: Even random distribution\n3. View Rankings";
-    ofDrawBitmapStringHighlight(selectModeMsg, ofGetWidth() / 2 - 150, ofGetHeight() / 2, ofColor::white, ofColor::black);
+    string selectModeMsg = "Select Game Mode\n1. Mode 1: Pairs summing to 10\n2. Mode 2: Even random distribution\n3. View Rankings\nPress \"q\" to exit.";
+    ofDrawBitmapStringHighlight(selectModeMsg, ofGetWidth() / 2 - 150, ofGetHeight() / 2, ofColor::white, ofColor::black); //화면에 글자를 출력한다.
 }
 
 // 게임 화면 그리기 함수
@@ -87,17 +90,23 @@ void ofApp::drawGameOver() {
 void ofApp::drawRanking() {
     ofSetColor(0);
     string rankingMsg = "Ranking:\n";
-    User* current = rankingList;
+    User* current = rankingList; //linked list로 랭킹리스트를 받는다.
     int rank = 1;
-    while (current != nullptr) {
+    while (current != nullptr) { //랭킹 정보를 정해진 형식대로 출력한다.
         rankingMsg += ofToString(rank++) + ". " + current->name + " " + ofToString(current->score) + "\n";
         current = current->next;
     }
     ofDrawBitmapStringHighlight(rankingMsg, ofGetWidth() / 2 - 150, ofGetHeight() / 2, ofColor::white, ofColor::black);
 }
 
+void ofApp::checkForExit(int key) { //프로그램 종료 조건 함수
+    if (key == 'q') {
+        shouldExit = true;
+    }
+}
 // 키를 눌렀을 때 호출되는 함수
 void ofApp::keyPressed(int key) {
+    checkForExit(key); //프로그램 종료 조건 체크
     if (mode == 0) { // 모드 선택 화면에서
         if (key == '1') {
             mode = 1; // 모드 1 선택
@@ -113,6 +122,7 @@ void ofApp::keyPressed(int key) {
             enteringName = false; // 이름 입력 종료
             addRanking(playerName, score); // 랭킹 추가
             saveRanking(); // 랭킹 저장
+            playerName = "";//플레이어 이름 초기화
             mode = 0; // 메인 화면으로 돌아가기
         } else if (key == OF_KEY_BACKSPACE) { // Backspace 키를 누르면
             if (!playerName.empty()) {
@@ -124,9 +134,7 @@ void ofApp::keyPressed(int key) {
     } else if (mode == 3 && key == '0') {
         mode = 0; // 랭킹 화면에서 메인 화면으로 돌아가기
     }
-    //else if (key == '0') {
-      //  mode = 0;
-    //}
+   
 }
 
 // 게임 설정 함수
@@ -135,6 +143,7 @@ void ofApp::setupGame() {
     timer = timeLimit; // 타이머 초기화
     drawingBox = false; // 상자 그리기 상태 초기화
     gameOver = false; // 게임 오버 상태 초기화
+    playerName = "";//플레이어 이름 초기화
     fillGrid(); // 그리드 채우기
 }
 
@@ -177,9 +186,9 @@ void ofApp::mouseReleased(int x, int y, int button) {
 
     // 선택된 숫자의 합이 10이면 셀 비우기
     if (sum == 10) {
-        for (auto& cell : cellsToClear) {
+        for (auto& cell : cellsToClear) {//지워진 cell이 많을수록 많은 점수 증가
             grid[cell.first][cell.second] = -1; // 셀 비우기
-            score = score + 10;//점수 증가
+            score = score + 10;//점수 증가 
         }
         
     }
@@ -280,9 +289,9 @@ void ofApp::fillGrid() {
         for (int i = numbers.size(); i < totalCells; ++i) {
             numbers.push_back(1 + (i % 9)); // 1부터 9까지 반복하여 추가
         }
-
+        //숫자들 무작위로 섞기
         shuffle(numbers.begin(), numbers.end(), g);
-
+        //grid에 숫자들 배치
         int index = 0;
         for (int i = 0; i < gridSize; i++) {
             for (int j = 0; j < gridSize; j++) {
@@ -294,11 +303,11 @@ void ofApp::fillGrid() {
 
 // 랭킹 정보를 파일에서 불러오는 함수
 void ofApp::loadRanking() {
-    ifstream file("rank.txt");
+    ifstream file("rank.txt"); //"rank.txt" 파일을 불러옴
     if (!file.is_open()) return;
 
     std::string line;
-    while (getline(file, line)) {
+    while (getline(file, line)) { //파일을 한 줄씩 가져옴.
         istringstream ss(line);
         string name;
         int score;
@@ -307,43 +316,58 @@ void ofApp::loadRanking() {
     }
     file.close();
 }
-
 // 랭킹 정보를 파일에 저장하는 함수
 void ofApp::saveRanking() {
-    ofstream file("rank.txt");
-    User* current = rankingList;
-    while (current != nullptr) {
-        file << current->name << " " << current->score << std::endl;
-        current = current->next;
+    ofstream file("rank.txt"); // rank.txt 파일을 출력 스트림으로 열기
+    User* current = rankingList; // 랭킹 리스트의 첫 번째 사용자부터 시작
+    while (current != nullptr) { // 랭킹 리스트의 모든 사용자를 순회
+        file << current->name << " " << current->score << std::endl; // 사용자 이름과 점수를 파일에 쓰기
+        current = current->next; // 다음 사용자로 이동
     }
-    file.close();
+    file.close(); // 파일 닫기
 }
 
 // 랭킹 리스트에 사용자 추가 함수
 void ofApp::addRanking(string name, int score) {
-    User* newUser = new User(name, score);
-    if (rankingList == nullptr || rankingList->score < score) {
-        newUser->next = rankingList;
-        rankingList = newUser;
-    } else {
-        User* current = rankingList;
-        while (current->next != nullptr && current->next->score >= score) {
-            current = current->next;
+    User* newUser = new User(name, score); // 새로운 사용자 생성
+    if (rankingList == nullptr || rankingList->score < score) { // 리스트가 비어있거나 새로운 사용자의 점수가 최고 점수인 경우
+        newUser->next = rankingList; // 새로운 사용자를 리스트의 첫 번째에 추가
+        rankingList = newUser; // 새로운 사용자를 리스트의 첫 번째 사용자로 설정
+    }
+    else { // 새로운 사용자의 점수가 중간에 위치하는 경우
+        User* current = rankingList; // 현재 사용자 포인터를 리스트의 첫 번째 사용자로 설정
+        while (current->next != nullptr && current->next->score >= score) { // 새로운 사용자의 점수보다 낮은 점수를 가진 사용자를 찾기 위해 리스트 순회
+            current = current->next; // 다음 사용자로 이동
         }
-        newUser->next = current->next;
-        current->next = newUser;
+        newUser->next = current->next; // 새로운 사용자의 다음을 현재 사용자의 다음으로 설정
+        current->next = newUser; // 현재 사용자의 다음을 새로운 사용자로 설정
     }
 }
 
 // 랭킹 정보를 화면에 표시하는 함수
 void ofApp::displayRanking() {
-    ofSetColor(0);
-    string rankingMsg = "Ranking:\n";
-    User* current = rankingList;
-    int rank = 1;
-    while (current != nullptr) {
-        rankingMsg += ofToString(rank++) + ". " + current->name + " " + ofToString(current->score) + "\n";
-        current = current->next;
+    ofSetColor(0); // 텍스트 색상을 검은색으로 설정
+    string rankingMsg = "Ranking:\n"; // 랭킹 메시지 초기화
+    User* current = rankingList; // 랭킹 리스트의 첫 번째 사용자부터 시작
+    int rank = 1; // 순위 초기화
+    while (current != nullptr) { // 랭킹 리스트의 모든 사용자를 순회
+        rankingMsg += ofToString(rank++) + ". " + current->name + " " + ofToString(current->score) + "\n"; // 순위, 사용자 이름, 점수를 랭킹 메시지에 추가
+        current = current->next; // 다음 사용자로 이동
     }
-    ofDrawBitmapStringHighlight(rankingMsg, 10, gridSize * cellSize + 60, ofColor::white, ofColor::black);
+    ofDrawBitmapStringHighlight(rankingMsg, 10, gridSize * cellSize + 60, ofColor::white, ofColor::black); // 랭킹 메시지를 화면에 그리기 (하이라이트 포함)
+}
+// 랭킹 리스트의 메모리를 해제하는 함수
+void ofApp::clearRankingList() {
+    User* current = rankingList; // 랭킹 리스트의 첫 번째 사용자부터 시작
+    while (current != nullptr) { // 랭킹 리스트의 모든 사용자를 순회
+        User* nextUser = current->next; // 다음 사용자를 저장
+        delete current; // 현재 사용자 삭제
+        current = nextUser; // 다음 사용자로 이동
+    }
+    rankingList = nullptr; // 랭킹 리스트 초기화
+}
+
+// ofApp의 소멸자에서 clearRankingList를 호출하여 메모리 해제
+ofApp::~ofApp() {
+    clearRankingList(); // 랭킹 리스트의 메모리 해제
 }
